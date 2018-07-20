@@ -3,13 +3,12 @@ var inquirer = require("inquirer");
 
 var connection = mysql.createConnection({
     host: "localhost",
-    port: 8889,
+    port: 8888,
     user: "root",
     password: "root",
     database: "bamazon_db"
 });
 
-var namesArr = []
 
 // connect to the mysql server and sql database
 connection.connect(function (err) {
@@ -44,30 +43,72 @@ function purchaseHelperStart() {
                     return namesArr;
                 },
                 message: "What would you like to buy?"
+            },
+            {
+                name: "howMany",
+                type: "input",
+                message: "How many would you like to buy?",
+                validate: function (value) {
+                    if (isNaN(value) === false) {
+                        return true;
+                    }
+                    console.log(" That's not a valid order number. Try again.")
+                    return false;
+                }
             }
         ]).then(function (iRes) {
-            var indChoice = iRes.buyWhat;
-            console.log(indChoice);
-            console.log(iRes)
-            if (res[indChoice - 1] && res[indChoice - 1].stock > 0) {
-                updateStock();
-            }
-            else{
-                console.log(res)
-                console.log("Sorry, we don't have enough of that item.")
-            }
+            connection.query("SELECT * FROM products", function (err, res) {
+                var indChoice = iRes.buyWhat.charAt(0);
+                var dbChoice = parseInt(indChoice) + 1;
+                var orderNum = parseInt(iRes.howMany);
+
+                if (res[indChoice]) {
+                    if (res[indChoice].stock >= orderNum) {
+                        if (err) throw err;
+                        var newStock = (res[indChoice].stock - orderNum);
+                        connection.query(
+                            "UPDATE products SET ? WHERE ?",
+                            [
+                                {
+                                    stock: parseInt(newStock)
+                                },
+                                {
+                                    item_id: parseInt(dbChoice)
+                                }
+                            ],
+                            function (err, res1) {
+                                if (err) throw err;
+                                console.log("You just bought " + orderNum + " " + res[indChoice].product_name + "(s)! " + res[indChoice].product_name + "'s stock has been updated." +
+                                "\n"+res[indChoice].product_name + "'s stock should now be " + newStock)
+                                endTransactions();
+                            }
+                        );
+                    } else {
+                        console.log("Sorry, we don't have enough of that item to complete your order.")
+                        endTransactions()
+                    }
+                }
+                else {
+                    console.log("Sorry, we don't have that.")
+                    endTransactions()
+                }
+            })
         })
     })
 }
 
-function updateStock() {
-    var query = connection.query(
-        "UPDATE products SET ? WHERE ?", [
-            { stock: (res[indChoice - 1].stock - 1) },
-            { item_id: indChoice }],
-        function (err, res) {
-            console.log("You just bought 1 " + res[indChoice - 1].product_name + "!")
-            console.log(res.affectedRows + " stock updated to " + res[indChoice - 1].stock);
+
+function endTransactions() {
+    inquirer.prompt({
+        name: "new",
+        type: "confirm",
+        message: "Do you want to buy something else?"
+    }).then(function (answer) {
+        if (answer.new === true) {
+            purchaseHelperStart();
         }
-    );
+        else {
+            connection.end();
+        }
+    })
 }
