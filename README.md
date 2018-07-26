@@ -15,3 +15,5 @@ Then, choose how many of the item you would like to order.
   ![alt text](/images/3updatestock.png)
   
   Lastly, a prompt will ask the user if they wish to order anything else.  If the user responds with Y, the process will start over from the top (albiet with the new stock numbers).  If the user responds with n, the app will close.
+
+  ![alt text](/images/4closeapp.png)
